@@ -1,7 +1,8 @@
 fastapi==0.110.0
 uvicorn==0.27.1
 pydantic-settings==2.2.1
-# 未來會用到，先列出
 sqlalchemy==2.0.28
 psycopg2-binary==2.9.9
 python-multipart==0.0.9
+alembic==1.13.1
+pgvector==0.2.5
