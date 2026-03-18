@@ -25,8 +25,8 @@
 
 ## 📖 安裝與配置文檔
 本後端服務通常與部署環境緊密結合，請參考以下文檔以獲得完整資訊：
-- [全系統部署指南 (Deploy Repo)](../resume-platform-deploy/README.md)
-- [詳細技術架構設計](./ARCHITECTURE.md)
+- [全系統部署指南 (Deploy Repo)](https://github.com/DingHungD/resume-platform-deploy/blob/main/README.md)
+- [詳細技術架構設計](https://github.com/DingHungD/resume-platform-deploy/blob/main/ARCHITECTURE.md)
 
 ---
 
