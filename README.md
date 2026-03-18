@@ -51,11 +51,11 @@
 
 ---
 
-## 🚀 使用概述 (開發模式)
+## 🔍 故障排除與測試提示
 - Alembic 報錯: 若出現 NameError 或 ModuleNotFoundError，請檢查 alembic/env.py 是否已正確匯入 app.models。
 - 向量型別錯誤: 若資料庫報錯 type "vector" does not exist，請確保已執行 CREATE EXTENSION vector;。
 - 單元測試: 使用 pytest 進行測試（開發中）。
-- 更多細節請參閱 故障排除手冊。
+- 更多細節請參閱 [故障排除手冊。]()
 
 --- 
 ## 🔗 更多資源
