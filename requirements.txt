@@ -1,8 +1,31 @@
-fastapi==0.110.0
-uvicorn==0.27.1
-pydantic-settings==2.2.1
-sqlalchemy==2.0.28
-psycopg2-binary==2.9.9
-python-multipart==0.0.9
-alembic==1.13.1
-pgvector==0.2.5
+# Web 框架與伺服器
+fastapi
+uvicorn[standard]
+python-multipart
+
+# 資料庫與遷移
+sqlalchemy
+psycopg2-binary
+alembic
+pgvector
+
+# 異步處理 (Task Queue)
+celery
+redis
+aiofiles==23.2.1
+
+# 身份驗證與安全 (Auth 模組核心)
+bcrypt==4.0.1
+passlib[bcrypt]==1.7.4
+python-jose[cryptography] # 處理 JWT Token 簽發與驗證
+python-dotenv            # 讀取 .env 環境變數
+
+
+# 資料驗證與轉換
+pydantic[email]          # 支援 EmailStr 驗證格式
+pydantic-settings
+
+# AI 與 RAG 相關 (預留未來使用)
+openai                   # 呼叫 Embedding 與 Chat 模型
+langchain                # RAG 框架流程管理
+pypdf                    # PDF 解析工具
