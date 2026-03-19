@@ -68,7 +68,9 @@ async def upload_resume(
         db.commit()
         db.refresh(new_resume)
         # 5. TODO: 發送任務給 Celery Worker (Repo C)
+        print(f"📡 正在發送任務至 Redis: {new_resume.id}")
         analyze_resume_task.delay(str(new_resume.id), dest_path)
+        print(f"✅ 任務已發出，Task ID: {new_resume.id}")
     except Exception as e:
         # 如果資料庫寫入失敗，應刪除已上傳的實體檔案
         if os.path.exists(dest_path):
@@ -77,11 +79,7 @@ async def upload_resume(
         raise HTTPException(status_code=500, detail="Database error")
 
     
-    return {
-        "message": "Upload successful, processing started.",
-        "resume_id": str(new_resume.id),
-        "filename": file.filename
-    }
+    return new_resume
 
 @router.get("/", response_model=List[ResumeRead])
 async def list_my_resumes(

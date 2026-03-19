@@ -10,6 +10,7 @@ class ResumeRead(BaseModel):
     status: str
     created_at: datetime
     # 這裡可以選擇性回傳解析後的 JSON，如果還沒解析完就是空
+    raw_text: Optional[str] = None
     extracted_info: Optional[Dict[str, Any]] = None
 
     class Config:

@@ -9,7 +9,7 @@ celery_app = Celery(
 )
 
 # 基本配置
-celery_app.conf.task_routes = {
-    "app.worker.analyze_resume_task": "resume-queue"
-}
+# celery_app.conf.task_routes = {
+#     "app.worker.analyze_resume_task": "resume-queue"
+# }
 celery_app.conf.update(task_track_started=True)
