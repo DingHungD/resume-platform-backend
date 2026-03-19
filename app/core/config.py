@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: str
 
+    # Redis
+    REDIS_HOST: str
+    REDIS_PORT: int
+
     class Config:
         env_file = ".env"
         case_sensitive = True

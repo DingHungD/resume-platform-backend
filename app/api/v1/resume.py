@@ -1,26 +1,29 @@
 import os
 import uuid
-import aiofiles  # 建議 pip install aiofiles
+import aiofiles
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+from uuid import UUID
 
 from app.db.session import get_db
 from app.models.resume import Resume
 from app.models.user import User
-from app.api.v1.auth import get_current_user  # 確保你已實作此 Dependency
-# from app.worker import analyze_resume_task  # 假設這是你的 Celery task
+from app.api.v1.auth import get_current_user
+from app.schemas.resume import ResumeRead
+from app.worker import analyze_resume_task
 
 router = APIRouter()
 
 # 設定上傳路徑
 UPLOAD_DIR = "uploads/resumes"
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt"}
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
-@router.post("/upload", status_code=status.HTTP_201_CREATED)
+@router.post("/upload", status_code=status.HTTP_201_CREATED, response_model=ResumeRead)
 async def upload_resume(
     file: UploadFile = File(...), 
     db: Session = Depends(get_db),
@@ -64,14 +67,15 @@ async def upload_resume(
         db.add(new_resume)
         db.commit()
         db.refresh(new_resume)
+        # 5. TODO: 發送任務給 Celery Worker (Repo C)
+        analyze_resume_task.delay(str(new_resume.id), dest_path)
     except Exception as e:
         # 如果資料庫寫入失敗，應刪除已上傳的實體檔案
         if os.path.exists(dest_path):
             os.remove(dest_path)
+        db.rollback()
         raise HTTPException(status_code=500, detail="Database error")
 
-    # 5. TODO: 發送任務給 Celery Worker (Repo C)
-    # analyze_resume_task.delay(str(new_resume.id), dest_path)
     
     return {
         "message": "Upload successful, processing started.",
@@ -79,25 +83,40 @@ async def upload_resume(
         "filename": file.filename
     }
 
-@router.get("/my-resumes")
-async def list_user_resumes(
+@router.get("/", response_model=List[ResumeRead])
+async def list_my_resumes(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    skip: int = 0,
+    limit: int = 10
+):
+    """
+    取得當前登入使用者的所有履歷列表
+    """
+    resumes = db.query(Resume)\
+        .filter(Resume.user_id == current_user.id)\
+        .order_by(Resume.created_at.desc())\
+        .offset(skip)\
+        .limit(limit)\
+        .all()
+    
+    return resumes
+
+@router.get("/{resume_id}", response_model=ResumeRead)
+async def get_resume_detail(
+    resume_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """取得當前使用者上傳的所有履歷狀態"""
-    resumes = db.query(Resume).filter(Resume.user_id == current_user.id).all()
-    return resumes
+    """
+    取得特定單一履歷的詳細資訊
+    """
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id, 
+        Resume.user_id == current_user.id
+    ).first()
 
-
-
-@router.post("/upload")
-async def upload_resume(
-    file: UploadFile = File(...), 
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user) # 這裡會自動擋下未登入者
-):
-    # 此時 current_user 已經是資料庫裡的 User 物件了
-    print(f"User {current_user.email} is uploading a file")
-    
-    # 建立 Resume 時直接關聯：user_id=current_user.id
-    ...
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+        
+    return resume
