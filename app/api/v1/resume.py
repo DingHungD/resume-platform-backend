@@ -49,14 +49,20 @@ async def upload_resume(
         if not chat_session:
             raise HTTPException(status_code=404, detail="Chat session not found")
     else:
-        # 如果沒有傳 session_id，自動建立一個新的對話會話
-        chat_session = ChatSession(
-            id=uuid.uuid4(),
-            user_id=current_user.id,
-            title=f"Chat: {file.filename}"
-        )
-        db.add(chat_session)
-        db.flush() # 先取得 ID 供後續 Resume 綁定
+        # 尋找該使用者最近使用的第一個 Session
+        chat_session = db.query(ChatSession).filter(
+            ChatSession.user_id == current_user.id
+        ).order_by(ChatSession.created_at.desc()).first()
+
+        # 如果完全沒有 Session，則幫他創一個
+        if not chat_session:
+            chat_session = ChatSession(
+                id=uuid.uuid4(),
+                user_id=current_user.id,
+                title=f"我的第一個對話"
+            )
+            db.add(chat_session)
+            db.flush()
 
     # 3. 產生唯一檔名與路徑
     unique_filename = f"{uuid.uuid4()}{file_ext}"
@@ -161,3 +167,46 @@ async def get_user_sessions(
     """讓前端 Dashboard 列出所有對話列表"""
     sessions = db.query(ChatSession).filter(ChatSession.user_id == current_user.id).all()
     return sessions
+
+@router.post("/sessions/{session_id}/share")
+async def toggle_session_share(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    切換對話的公開分享狀態。
+    如果開啟：生成 share_token
+    如果關閉：清除 share_token
+    """
+    # 1. 查找並驗證權限
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="找不到該對話或權限不足")
+
+    # 2. 執行切換邏輯
+    if not session.is_public:
+        # 開啟分享：生成 16 字元的 URL 安全 Token
+        session.is_public = True
+        session.share_token = secrets.token_urlsafe(16)
+    else:
+        # 關閉分享：重設狀態
+        session.is_public = False
+        session.share_token = None
+
+    try:
+        db.commit()
+        db.refresh(session)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"更新分享狀態失敗: {str(e)}")
+
+    return {
+        "session_id": session.id,
+        "is_public": session.is_public,
+        "share_token": session.share_token
+    }
