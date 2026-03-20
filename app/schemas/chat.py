@@ -8,7 +8,7 @@ class ChatMessageBase(BaseModel):
     role: str
 
 class ChatMessageCreate(ChatMessageBase):
-    resume_id: UUID
+    session_id: UUID
 
 class ChatMessageOut(ChatMessageBase):
     id: UUID
@@ -18,5 +18,5 @@ class ChatMessageOut(ChatMessageBase):
         from_attributes = True
 
 class ChatHistory(BaseModel):
-    resume_id: UUID
+    session_id: UUID
     messages: List[ChatMessageOut]
