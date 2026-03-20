@@ -3,7 +3,9 @@ from sqlalchemy import Column, String, ForeignKey, JSON, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from app.db.session import Base
+from sqlalchemy.sql import text
 from pgvector.sqlalchemy import Vector
+from sqlalchemy.orm import relationship
 
 class Resume(Base):
     __tablename__ = "resumes"
@@ -25,10 +27,14 @@ class Resume(Base):
     # 狀態追蹤
     status = Column(String, default="pending")  # pending, processing, completed, failed
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    messages = relationship("ChatMessage", back_populates="resume", cascade="all, delete-orphan")
+    user = relationship("User", back_populates="resumes")
 
 class DocumentChunk(Base):
     __tablename__ = "document_chunks"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()"))
     resume_id = Column(UUID(as_uuid=True), ForeignKey("resumes.id"))
     content = Column(Text)
     embedding = Column(Vector(1536)) # 對應 OpenAI embedding 維度
+    
+    

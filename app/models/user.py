@@ -1,6 +1,7 @@
 from sqlalchemy import Column, String, Enum, UUID
 import uuid
 from app.db.session import Base
+from sqlalchemy.orm import relationship
 
 class User(Base):
     __tablename__ = "users"
@@ -9,3 +10,5 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String)
     role = Column(String, default="user") # admin, user
+    resumes = relationship("Resume", back_populates="user", cascade="all, delete-orphan")
+    chat_messages = relationship("ChatMessage", back_populates="user")

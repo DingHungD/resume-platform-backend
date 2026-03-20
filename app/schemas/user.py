@@ -12,6 +12,9 @@ class UserCreate(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    
+class TokenData(BaseModel):
+    email: Optional[str] = None
 
 # API 回傳的使用者資料 (不含密碼)
 class UserOut(BaseModel):

@@ -9,9 +9,10 @@ from uuid import UUID
 from app.db.session import get_db
 from app.models.resume import Resume
 from app.models.user import User
-from app.api.v1.auth import get_current_user
+from app.api.deps import get_current_user
 from app.schemas.resume import ResumeRead
 from app.worker import analyze_resume_task
+from app.services.chat_service import chat_service
 
 router = APIRouter()
 
@@ -118,3 +119,15 @@ async def get_resume_detail(
         raise HTTPException(status_code=404, detail="Resume not found")
         
     return resume
+
+@router.delete("/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_resume(
+    resume_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    
+    success = await chat_service.delete_resume(db, resume_id, current_user.id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Resume not found or unauthorized")
+    return None
