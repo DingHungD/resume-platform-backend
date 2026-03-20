@@ -6,12 +6,14 @@ from app.api.deps import get_current_user_ws # 👈 引用剛寫好的驗證
 from app.models.chat import ChatMessage      # 👈 引用對話模型
 import json
 import traceback
+from uuid import UUID
+
 router = APIRouter()
 
-@router.websocket("/chat/{resume_id}")
+@router.websocket("/chat/{session_id}")
 async def websocket_chat_endpoint(
     websocket: WebSocket, 
-    resume_id: str, 
+    session_id: str, 
     db: Session = Depends(get_db)
 ):
 
@@ -24,20 +26,18 @@ async def websocket_chat_endpoint(
         await websocket.send_text("Error: Unauthorized")
         await websocket.close(code=4003)
         return
-    print(f"✅ User {current_user.email} connected to resume {resume_id}")
+    print(f"✅ User {current_user.email} connected to resume {session_id}")
     
     try:
         while True:
             data = await websocket.receive_text()
-            print(f"📩 Received: {data}") # PYTHONUNBUFFERED=1 會讓這行顯示
-
             message_json = json.loads(data)
             user_query = message_json.get("message")
 
             # 2. 持久化：存入 User 的問題
             try:
                 user_msg = ChatMessage(
-                    resume_id=resume_id,
+                    resume_id=session_id,
                     user_id=current_user.id,
                     role="user",
                     content=user_query
@@ -47,13 +47,13 @@ async def websocket_chat_endpoint(
 
                 # 3. 串流 AI 回答並紀錄
                 full_ai_response = ""
-                async for chunk in chat_service.get_streaming_answer(db, resume_id, user_query):
+                async for chunk in chat_service.get_streaming_answer(db, session_id, user_query):
                     full_ai_response += chunk
                     await websocket.send_text(chunk)
                 
                 # 4. 持久化：存入 AI 的完整回答
                 ai_msg = ChatMessage(
-                    resume_id=resume_id,
+                    resume_id=session_id,
                     user_id=current_user.id,
                     role="assistant",
                     content=full_ai_response

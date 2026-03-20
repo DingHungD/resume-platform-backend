@@ -12,6 +12,7 @@ class Resume(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    session_id = Column(UUID(as_uuid=True), ForeignKey("chat_sessions.id", ondelete="SET NULL"), nullable=True)
     
     # 檔案系統相關
     file_name = Column(String, nullable=False)  # 原始檔名
@@ -29,6 +30,7 @@ class Resume(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     messages = relationship("ChatMessage", back_populates="resume", cascade="all, delete-orphan")
     user = relationship("User", back_populates="resumes")
+    session = relationship("ChatSession", back_populates="resumes")
 
 class DocumentChunk(Base):
     __tablename__ = "document_chunks"

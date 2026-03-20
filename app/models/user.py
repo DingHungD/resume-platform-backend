@@ -10,5 +10,7 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String)
     role = Column(String, default="user") # admin, user
+
     resumes = relationship("Resume", back_populates="user", cascade="all, delete-orphan")
     chat_messages = relationship("ChatMessage", back_populates="user")
+    chat_sessions = relationship("ChatSession", back_populates="user")

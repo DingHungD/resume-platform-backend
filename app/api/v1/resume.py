@@ -1,9 +1,9 @@
 import os
 import uuid
 import aiofiles
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status, Form
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from app.db.session import get_db
@@ -13,6 +13,7 @@ from app.api.deps import get_current_user
 from app.schemas.resume import ResumeRead
 from app.worker import analyze_resume_task
 from app.services.chat_service import chat_service
+from app.models.chat import ChatSession
 
 router = APIRouter()
 
@@ -27,6 +28,7 @@ if not os.path.exists(UPLOAD_DIR):
 @router.post("/upload", status_code=status.HTTP_201_CREATED, response_model=ResumeRead)
 async def upload_resume(
     file: UploadFile = File(...), 
+    session_id: Optional[UUID] = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -37,12 +39,30 @@ async def upload_resume(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported file type. Allowed: {ALLOWED_EXTENSIONS}"
         )
+    # 2. 處理 ChatSession 邏輯
+    if session_id:
+        # 檢查該 Session 是否屬於目前使用者
+        chat_session = db.query(ChatSession).filter(
+            ChatSession.id == session_id,
+            ChatSession.user_id == current_user.id
+        ).first()
+        if not chat_session:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+    else:
+        # 如果沒有傳 session_id，自動建立一個新的對話會話
+        chat_session = ChatSession(
+            id=uuid.uuid4(),
+            user_id=current_user.id,
+            title=f"Chat: {file.filename}"
+        )
+        db.add(chat_session)
+        db.flush() # 先取得 ID 供後續 Resume 綁定
 
-    # 2. 產生唯一檔名與路徑
+    # 3. 產生唯一檔名與路徑
     unique_filename = f"{uuid.uuid4()}{file_ext}"
     dest_path = os.path.join(UPLOAD_DIR, unique_filename)
     
-    # 3. 異步寫入檔案到磁碟
+    # 4. 異步寫入檔案到磁碟
     try:
         content = await file.read()
         async with aiofiles.open(dest_path, mode="wb") as f:
@@ -53,10 +73,11 @@ async def upload_resume(
             detail=f"Could not save file: {str(e)}"
         )
     
-    # 4. 在資料庫建立紀錄
+    # 5. 在資料庫建立紀錄
     new_resume = Resume(
         id=uuid.uuid4(),
         user_id=current_user.id,  # 成功關聯目前登入用戶
+        session_id=chat_session.id, # 關聯到 Session
         file_name=file.filename,
         file_path=dest_path,
         file_type=file_ext,
@@ -68,7 +89,7 @@ async def upload_resume(
         db.add(new_resume)
         db.commit()
         db.refresh(new_resume)
-        # 5. TODO: 發送任務給 Celery Worker (Repo C)
+        # 6. 發送任務給 Celery Worker (Repo C)
         print(f"📡 正在發送任務至 Redis: {new_resume.id}")
         analyze_resume_task.delay(str(new_resume.id), dest_path)
         print(f"✅ 任務已發出，Task ID: {new_resume.id}")
@@ -131,3 +152,12 @@ async def delete_resume(
     if not success:
         raise HTTPException(status_code=404, detail="Resume not found or unauthorized")
     return None
+
+@router.get("/sessions")
+async def get_user_sessions(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """讓前端 Dashboard 列出所有對話列表"""
+    sessions = db.query(ChatSession).filter(ChatSession.user_id == current_user.id).all()
+    return sessions
