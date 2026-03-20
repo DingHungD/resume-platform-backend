@@ -35,7 +35,7 @@ class Resume(Base):
 class DocumentChunk(Base):
     __tablename__ = "document_chunks"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()"))
-    resume_id = Column(UUID(as_uuid=True), ForeignKey("resumes.id"))
+    resume_id = Column(UUID(as_uuid=True), ForeignKey("resumes.id", ondelete="CASCADE"))
     content = Column(Text)
     embedding = Column(Vector(1536)) # 對應 OpenAI embedding 維度
     
