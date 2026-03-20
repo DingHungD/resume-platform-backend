@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from app.api.v1 import auth, resume 
-from app.api.v1.endpoints import chat
+from app.api.v1 import auth, resume, chat
+from app.api.v1.endpoints import chat_ws
 from app.core.config import settings
 
 app = FastAPI(title=settings.PROJECT_NAME)
@@ -9,6 +9,7 @@ app = FastAPI(title=settings.PROJECT_NAME)
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["Auth"])
 app.include_router(resume.router, prefix=f"{settings.API_V1_STR}/resume", tags=["Resume Management"])
 app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["AI Chat"])
+app.include_router(chat_ws.router, prefix=f"{settings.API_V1_STR}/ws", tags=["ChatWS"])
 
 @app.get("/")
 def read_root():

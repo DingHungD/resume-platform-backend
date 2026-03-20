@@ -1,11 +1,11 @@
-from openai import OpenAI
+from openai import AsyncOpenAI
 from app.core.config import settings
 from typing import Dict, Any
 from app.schemas.analysis import ResumeAnalysisResult # 引入剛定義的格式
 
 class AIService:
     def __init__(self):
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         # 建議使用 gpt-4o 或 gpt-4o-mini，它們對 Structured Outputs 支援最好
         self.model = "gpt-4o-mini"
 
@@ -47,10 +47,31 @@ class AIService:
 
     async def call_llm(self, prompt: str):
         response = await self.client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message.content
+
+    async def stream_chat(self, prompt: str):
+        """開啟 OpenAI Stream 模式，逐字回傳答案"""
+        try:
+            response = await self.client.chat.completions.create(
+                model="gpt-4o-mini", # 或 gpt-3.5-turbo
+                messages=[
+                    {"role": "system", "content": "你是一位專業的 HR 助理，請根據提供的履歷片段精準回答問題。"},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.4,
+                stream=True  # 核心參數：開啟串流
+            )
+            async for chunk in response:
+                # 取得文字片段
+                content = chunk.choices[0].delta.content
+                if content:
+                    yield content
+        except Exception as e:
+            print(f"❌ Streaming Error: {e}")
+            yield f"發生錯誤：{str(e)}"
 
 # 實例化
 ai_service = AIService()
