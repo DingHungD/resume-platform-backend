@@ -1,23 +1,29 @@
 from sqlalchemy.orm import Session
-from app.models.resume import DocumentChunk
+from app.models.resume import DocumentChunk, Resume
 from app.services.ai_service import ai_service
 from pgvector.sqlalchemy import Vector
-from app.models.resume import Resume
+from typing import List
 
 class ChatService:
     def __init__(self):
         pass
+
+    async def _get_session_resume_ids(self, db: Session, session_id: str) -> List[str]:
+        """封裝：獲取該 Session 下所有已就緒的履歷 ID"""
+        resumes = db.query(Resume.id).filter(
+            Resume.session_id == session_id,
+            Resume.status == 'completed' # 只檢索解析完成的
+        ).all()
+        return [str(r.id) for r in resumes]
 
     async def get_answer(self, db: Session, session_id: str, query: str):
         # 1. 將用戶的問題轉為向量 (1536維)
         query_embedding = await ai_service.get_embedding(query)
 
         # 2. 找出該 Session 關聯的所有履歷 ID
-        resumes = db.query(Resume.id).filter(Resume.session_id == session_id).all()
-        resume_ids = [r.id for r in resumes]
-
+        resume_ids = await self._get_session_resume_ids(db, session_id)
         if not resume_ids:
-            return "此對話尚未關聯任何履歷資料。"
+            return "目前此對話尚未關聯任何已完成解析的履歷資料，請稍候或上傳檔案。"
         
         # 3. 向量檢索：使用 .in_(resume_ids) 進行多檔案搜尋
         chunks = db.query(DocumentChunk).filter(
@@ -27,24 +33,24 @@ class ChatService:
         ).limit(7).all() # 稍微增加 找到的chunk數量 is can change arg
 
         if not chunks:
-            return "找不到相關內容。"
+            return "在目前的履歷庫中找不到與您問題相關的內容。"
 
         # 4. 組合 Context 內容
         context_text = "\n".join([c.content for c in chunks])
 
         # 5. 構建 Prompt 給 LLM
         prompt = f"""
-        你是一位專業的人資助理，請根據以下提供的「履歷片段內容」來回答用戶的問題。
-        如果內容中沒有提到相關資訊，請誠實回答不知道，不要編造事實。
+你是一位專業的人資助理，請根據以下提供的「履歷片段內容」來回答用戶的問題。
+如果內容中沒有提到相關資訊，請誠實回答不知道，不要編造事實。
 
-        【履歷參考內容】：
-        {context_text}
+【履歷參考內容】：
+{context_text}
 
-        【用戶問題】：
-        {query}
+【用戶問題】：
+{query}
 
-        請用簡潔專業的口吻回答：
-        """
+請用簡潔專業的口吻回答：
+"""
 
         # 5. 呼叫 LLM 產生回應 (假設你的 ai_service 有 call_llm 方法)
         answer = await ai_service.call_llm(prompt)
@@ -55,8 +61,7 @@ class ChatService:
         query_embedding = await ai_service.get_embedding(query)
 
         # 2. 找出該 Session 關聯的所有履歷 ID
-        resumes = db.query(Resume.id).filter(Resume.session_id == session_id).all()
-        resume_ids = [r.id for r in resumes]
+        resume_ids = await self._get_session_resume_ids(db, session_id)
 
         # 3. 向量檢索：使用 .in_(resume_ids) 進行多檔案搜尋
         chunks = db.query(DocumentChunk).filter(

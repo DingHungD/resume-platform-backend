@@ -5,6 +5,7 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status,
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
+import secrets
 
 from app.db.session import get_db
 from app.models.resume import Resume
@@ -128,37 +129,6 @@ async def list_my_resumes(
     
     return resumes
 
-@router.get("/{resume_id}", response_model=ResumeRead)
-async def get_resume_detail(
-    resume_id: UUID,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    取得特定單一履歷的詳細資訊
-    """
-    resume = db.query(Resume).filter(
-        Resume.id == resume_id, 
-        Resume.user_id == current_user.id
-    ).first()
-
-    if not resume:
-        raise HTTPException(status_code=404, detail="Resume not found")
-        
-    return resume
-
-@router.delete("/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_resume(
-    resume_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    
-    success = await chat_service.delete_resume(db, resume_id, current_user.id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Resume not found or unauthorized")
-    return None
-
 @router.get("/sessions")
 async def get_user_sessions(
     db: Session = Depends(get_db),
@@ -210,3 +180,36 @@ async def toggle_session_share(
         "is_public": session.is_public,
         "share_token": session.share_token
     }
+
+
+@router.get("/{resume_id}", response_model=ResumeRead)
+async def get_resume_detail(
+    resume_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    取得特定單一履歷的詳細資訊
+    """
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id, 
+        Resume.user_id == current_user.id
+    ).first()
+
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+        
+    return resume
+
+@router.delete("/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_resume(
+    resume_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    
+    success = await chat_service.delete_resume(db, resume_id, current_user.id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Resume not found or unauthorized")
+    return None
+
