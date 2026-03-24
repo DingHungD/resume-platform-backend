@@ -7,7 +7,7 @@ from pydantic import BaseModel
 router = APIRouter()
 
 class ChatRequest(BaseModel):
-    resume_id: str
+    session_id: str
     message: str
 
 @router.post("/query")
@@ -18,7 +18,7 @@ async def chat_with_resume(
     try:
         answer = await chat_service.get_answer(
             db, 
-            resume_id=request.resume_id, 
+            session_id=request.session_id, 
             query=request.message
         )
         return {"answer": answer}

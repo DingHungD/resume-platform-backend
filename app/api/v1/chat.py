@@ -35,3 +35,27 @@ def get_chat_history(
     ).order_by(ChatMessage.created_at.asc()).all()
     
     return messages
+
+@router.get("/sessions/{session_id}")
+async def get_session_detail(
+    session_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """供前端對話室載入時獲取分享狀態與詳情"""
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id,
+        ChatSession.user_id == current_user.id
+    ).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    return {
+        "id": session.id,
+        "title": session.title,
+        "is_public": session.is_public,
+        "share_token": session.share_token,
+        "guest_can_chat": session.guest_can_chat,
+        "created_at": session.created_at
+    }

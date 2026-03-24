@@ -37,7 +37,7 @@ async def websocket_chat_endpoint(
             # 2. 持久化：存入 User 的問題
             try:
                 user_msg = ChatMessage(
-                    resume_id=session_id,
+                    session_id=session_id,
                     user_id=current_user.id,
                     role="user",
                     content=user_query
@@ -53,7 +53,7 @@ async def websocket_chat_endpoint(
                 
                 # 4. 持久化：存入 AI 的完整回答
                 ai_msg = ChatMessage(
-                    resume_id=session_id,
+                    session_id=session_id,
                     user_id=current_user.id,
                     role="assistant",
                     content=full_ai_response
