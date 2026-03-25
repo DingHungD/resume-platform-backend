@@ -59,3 +59,25 @@ async def get_session_detail(
         "guest_can_chat": session.guest_can_chat,
         "created_at": session.created_at
     }
+
+@router.get("/share/{token}/info")
+async def get_shared_session_info(token: str, db: Session = Depends(get_db)):
+    """
+    匿名接口：僅供訪客驗證 Token 並獲取 Session 基本資訊。
+    """
+    session = db.query(ChatSession).filter(
+        ChatSession.share_token == token,
+        ChatSession.is_public == True
+    ).first()
+
+    if not session:
+        # 找不到 Token 或分享已關閉
+        raise HTTPException(status_code=404, detail="此分享連結無效或已失效")
+
+    return {
+        "id": str(session.id),
+        "title": session.title,
+        "is_public": session.is_public,
+        "guest_can_chat": session.guest_can_chat
+    }
+
